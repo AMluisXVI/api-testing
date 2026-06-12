@@ -1,7 +1,4 @@
-# 🧪 API Testing — Urban Grocers
-
-**TripleTen QA Engineering Bootcamp**
-👤 Luis Manco
+# API Testing — Urban Grocers
 
 [![API Testing](https://img.shields.io/badge/API-Postman%20%7C%20REST-2E5FA3?style=flat-square)](./)
 [![Status](https://img.shields.io/badge/Status-Complete-green?style=flat-square)](./)
@@ -15,150 +12,164 @@
 
 ## 🇺🇸 English
 
-### Project Description
+### The Problem
 
-This project covers API testing for **Urban Grocers** — a grocery delivery backend. Tests were designed and executed using Postman, applying equivalence partitioning and boundary value analysis to three REST endpoints. The high failure rate (25/43) reflects genuine backend validation gaps discovered during testing.
+**Urban Grocers** was a grocery delivery backend — and it was broken.
 
-### Test Environment
+The API accepted negative quantities (-2, 0) for product orders. It crashed with a 500 error when receiving a decimal number (2.3) instead of returning a proper 400. It accepted requests without required fields like `id` and returned 200 OK. It didn't enforce kit name length — a 1-character name and a 35-character name both returned 201 Created.
 
-| Field | Value |
+25 out of 43 test cases failed. **A 42% pass rate means the backend shipped without basic input validation.**
+
+### Why This Matters
+
+This wasn't "edge case" testing. These are **basic validation failures**:
+
+- A user can place an order with quantity = -2.
+- A customer can order with quantity = 0 and pay $0.
+- Sending a decimal crashes the server instead of rejecting it gracefully.
+- Kit names can be anything — the rules exist on paper but not in code.
+
+Each of these is a real bug that affects real users. And they existed because the API team hadn't tested negative scenarios. That's the gap API testing is supposed to close.
+
+### The Approach — Scope & Cuts
+
+I tested **3 REST endpoints** of the Urban Grocers API using **manual API testing via Postman**:
+
+| Endpoint | Method | Cases | ✅ Passed | ❌ Failed |
+|---|---|---|---|---|
+| `/api/v1/kits/{id}/products` | POST | 20 | 8 | 12 |
+| `/order-and-go/v1/delivery` | POST | 15 | 5 | 10 |
+| `/api/v1/kits` | POST / PUT / DELETE | 8 | 5 | 3 |
+| **Total** | | **43** | **18** | **25** |
+
+**What was cut:**
+- No automation — manual first to understand the API behavior before writing scripts
+- No UI — pure backend testing, the frontend wasn't ready
+- No performance testing — functional validation was the priority
+
+> 43 cases, 25 failures. The low pass rate isn't a reflection of bad testing — it's a reflection of a backend that needed validation.
+
+### Tools — Chosen by Need
+
+| Tool | Why, Not Just What |
 |---|---|
-| Application | Urban Grocers API (backend) |
-| Tool | Postman |
-| Testing Type | Manual API Testing (positive + negative) |
-| Test Design | Equivalence classes + Boundary Value Analysis |
-| Data Format | JSON over HTTP |
+| **Postman** | Best tool for manual REST API testing — construct requests, inspect responses, organize collections. No code needed for the initial cycle. |
+| **Jira** | The team used it. 25 bugs tracked with HTTP method, URL, request body, expected vs. actual. |
+| **Urban Grocers API** | The actual backend endpoint. No mock, no stub — real server responses. |
 
-### Endpoints Under Test
+Postman was chosen because it lets you test APIs without writing a single line of code. The team needed to validate the backend behavior first. Automation comes after you know what the API actually does.
 
-| Requirement | Endpoint | Method | Description |
-|---|---|---|---|
-| REQ-1 | `/api/v1/kits/{id}/products` | POST | Add groceries to a kit. Returns 400 when unique products exceed 30. |
-| REQ-2 | `/order-and-go/v1/delivery` | POST | Check if Order and Go delivery is available and return its price. |
-| REQ-3 | `/api/v1/kits` | POST / PUT / DELETE | Create, rename, and delete kits. Name: 2–15 Latin chars, spaces or hyphens only. |
+### How It Was Broken Down
 
-### Results Summary
+3 endpoint sessions, each completable in one sitting:
 
-| Endpoint | Total Cases | ✅ Passed | ❌ Failed |
-|---|---|---|---|
-| POST /kits/{id}/products | 20 | 8 | 12 |
-| POST /order-and-go/v1/delivery | 15 | 5 | 10 |
-| POST · PUT · DELETE /kits | 8 | 5 | 3 |
-| **Total** | **43** | **18** | **25** |
+1. **POST /kits/{id}/products** (20 cases) — the most complex endpoint. 12 failures. Product validation was missing across the board.
+2. **POST /order-and-go/v1/delivery** (15 cases) — 10 failures. Delivery availability endpoint had no input guards.
+3. **POST / PUT / DELETE /kits** (8 cases) — 3 failures. Kit CRUD operations, including a documented endpoint (PUT) that returned 405.
 
-**Pass rate: 42%** — The low pass rate indicates that the Urban Grocers API was missing input validation for most field types and edge cases at the time of testing.
+Each session focused on one endpoint, running positive + negative cases. No dependency between endpoints — any order works.
 
-### Key Findings
+### The Results
 
-| Finding | Impact |
+| Metric | Value |
 |---|---|
-| Negative quantities accepted (quantity = -2, 0) | Orders can be placed with invalid amounts |
-| Missing `id` field in productsList returns 200 OK | Required field not validated |
-| Float quantities (2.3) trigger 500 Internal Server Error | Server crash instead of graceful 400 |
-| Kit name length not enforced (1 char, 35 chars → 201 Created) | Name rules not implemented |
-| PUT /kits returns 405 Method Not Allowed | Documented endpoint does not exist |
-| Non-existent product ID returns 200 OK | Catalog integrity not validated |
+| Test cases | 43 |
+| ✅ Passed | 18 |
+| ❌ Failed | 25 |
+| **Pass rate** | **42%** |
 
-### Bug Reports
+**The 6 most critical findings:**
 
-Defects documented in Jira under project **Urban Grocers API (UGA-xx)** — full export included.
-
-| Bug ID | Title | Priority |
-|---|---|---|
-| UGA-10 | Negative quantity accepted | Medium |
-| UGA-11 | Missing id field returns 200 OK | Medium |
-| UGA-16 | Float quantity causes 500 error | High |
-| UGA-20 | Letters and symbols accepted as product count | Medium |
-| + 21 more | Various validation gaps | Low–High |
-
-### Project Files
-
-| File | Description |
+| Finding | What went wrong |
 |---|---|
-| `test-cases/Luis_Manco_Sprint4_API_Testing_v3.xlsx` | Full bilingual workbook: theory summary, 43 test cases (EN/ES), pass/fail results |
-| `evidence/bug-reports/Urban_Grocers_API_bugs_jira.doc` | Jira export — all bug reports with steps to reproduce and environment details |
+| Negative quantities accepted (`-2`, `0`) | Orders can be placed with invalid amounts — financial impact |
+| Missing `id` field returns 200 OK | Required field not validated — data integrity risk |
+| Float quantities (`2.3`) trigger **500 Internal Server Error** | Server crashes instead of returning a proper 400 |
+| Kit name length not enforced (1 char, 35 chars → 201 Created) | Naming rules not implemented — data inconsistency |
+| PUT /kits returns 405 Method Not Allowed | Documented endpoint doesn't exist — spec vs. reality mismatch |
+| Non-existent product ID returns 200 OK | Catalog integrity not validated — phantom products accepted |
 
-### Skills Demonstrated
-
-- ✅ REST API concepts: HTTP methods (GET, POST, PUT, DELETE), status codes, JSON
-- ✅ Equivalence class partitioning applied to API request fields
-- ✅ Boundary value analysis for numeric fields (quantity, weight, kit name length)
-- ✅ Positive and negative test execution via Postman
-- ✅ Identifying 500-level server errors caused by missing input validation
-- ✅ Structured Jira bug reporting for API defects (HTTP method, URL, request body, expected vs. actual)
-
-### Tools Used
-
-| Tool | Purpose |
-|---|---|
-| Postman | Send HTTP requests, inspect responses, manage collections |
-| Jira | Bug tracking and defect reporting |
-| Urban Grocers API | Application under test |
+All 25 bugs documented in `evidence/bug-reports/Urban_Grocers_API_bugs_jira.doc` with request/response details.
 
 ---
 
 ## 🇪🇸 Español
 
-### Descripción del Proyecto
+### El Problema
 
-Este proyecto cubre las pruebas de API de **Urban Grocers** — un backend de entrega de comestibles. Las pruebas fueron diseñadas y ejecutadas con Postman, aplicando clases de equivalencia y análisis de valores límite a tres endpoints REST. La alta tasa de fallos (25/43) refleja brechas reales de validación en el backend descubiertas durante las pruebas.
+**Urban Grocers** era un backend de entrega de comestibles — y estaba roto.
 
-### Entorno de Prueba
+La API aceptaba cantidades negativas (-2, 0) para pedidos de productos. Se caía con error 500 al recibir un número decimal (2.3) en lugar de devolver un 400 correcto. Aceptaba solicitudes sin campos obligatorios como `id` y devolvía 200 OK. No validaba la longitud del nombre del kit — un nombre de 1 carácter y uno de 35 caracteres ambos devolvían 201 Created.
 
-| Campo | Valor |
+25 de 43 casos de prueba fallaron. **Una tasa de aprobación del 42% significa que el backend se lanzó sin validación de entrada básica.**
+
+### Por Qué Importa
+
+Esto no es "casos límite". Son **fallos de validación básicos**:
+
+- Un usuario puede hacer un pedido con cantidad = -2.
+- Un cliente puede pedir con cantidad = 0 y pagar $0.
+- Enviar un decimal tira abajo el servidor en lugar de rechazarlo correctamente.
+- Los nombres de kit pueden ser cualquier cosa — las reglas existen en papel pero no en código.
+
+Cada uno es un bug real que afecta a usuarios reales. Y existían porque el equipo de API no había probado escenarios negativos. Ese es el gap que las pruebas de API deben cerrar.
+
+### El Enfoque — Alcance y Recortes
+
+Probé **3 endpoints REST** de la API de Urban Grocers con **pruebas de API manuales via Postman**:
+
+| Endpoint | Método | Casos | ✅ Aprobados | ❌ Fallidos |
+|---|---|---|---|---|
+| `/api/v1/kits/{id}/products` | POST | 20 | 8 | 12 |
+| `/order-and-go/v1/delivery` | POST | 15 | 5 | 10 |
+| `/api/v1/kits` | POST / PUT / DELETE | 8 | 5 | 3 |
+| **Total** | | **43** | **18** | **25** |
+
+**Lo que se recortó:**
+- Sin automatización — primero manual para entender el comportamiento de la API
+- Sin UI — pruebas de backend puro, el frontend no estaba listo
+- Sin pruebas de rendimiento — la validación funcional era la prioridad
+
+> 43 casos, 25 fallos. La baja tasa de aprobación no refleja malas pruebas — refleja un backend que necesitaba validación.
+
+### Stack — Elegido por Necesidad
+
+| Herramienta | Por Qué, No Solo Qué |
 |---|---|
-| Aplicación | API de Urban Grocers (backend) |
-| Herramienta | Postman |
-| Tipo de prueba | Pruebas de API manuales (positivas y negativas) |
-| Diseño de prueba | Clases de equivalencia + Análisis de valores límite |
-| Formato de datos | JSON sobre HTTP |
+| **Postman** | La mejor herramienta para pruebas manuales de API REST — construís requests, inspeccionás responses, organizás colecciones. Sin código para el ciclo inicial. |
+| **Jira** | El equipo lo usaba. 25 bugs con método HTTP, URL, body, esperado vs. actual. |
+| **Urban Grocers API** | El backend real. Sin mock, sin stub — respuestas reales del servidor. |
 
-### Endpoints Probados
+Postman fue elegido porque permite probar APIs sin escribir una línea de código. El equipo necesitaba validar el comportamiento del backend primero. La automatización viene después de saber lo que la API realmente hace.
 
-| Requisito | Endpoint | Método | Descripción |
-|---|---|---|---|
-| REQ-1 | `/api/v1/kits/{id}/products` | POST | Agregar comestibles a un kit. Devuelve 400 si los productos únicos superan 30. |
-| REQ-2 | `/order-and-go/v1/delivery` | POST | Verificar disponibilidad del servicio Order and Go y devolver precio. |
-| REQ-3 | `/api/v1/kits` | POST / PUT / DELETE | Crear, renombrar y eliminar kits. Nombre: 2–15 chars latinos, espacios o guiones. |
+### Cómo se Fragmentó
 
-### Resumen de Resultados
+3 sesiones por endpoint, cada una completable en una sentada:
 
-| Endpoint | Total de casos | ✅ Aprobados | ❌ Fallidos |
-|---|---|---|---|
-| POST /kits/{id}/products | 20 | 8 | 12 |
-| POST /order-and-go/v1/delivery | 15 | 5 | 10 |
-| POST · PUT · DELETE /kits | 8 | 5 | 3 |
-| **Total** | **43** | **18** | **25** |
+1. **POST /kits/{id}/products** (20 casos) — el endpoint más complejo. 12 fallos. La validación de productos faltaba por completo.
+2. **POST /order-and-go/v1/delivery** (15 casos) — 10 fallos. El endpoint de disponibilidad no tenía guardas de entrada.
+3. **POST / PUT / DELETE /kits** (8 casos) — 3 fallos. Operaciones CRUD de kits, incluyendo un endpoint documentado (PUT) que devolvía 405.
 
-**Tasa de aprobación: 42%** — La baja tasa refleja que la API de Urban Grocers carecía de validación de entrada para la mayoría de tipos de campo y casos límite al momento de las pruebas.
+Cada sesión se centró en un endpoint, ejecutando casos positivos y negativos. Sin dependencias entre endpoints.
 
-### Hallazgos Clave
+### Los Resultados
 
-| Hallazgo | Impacto |
+| Métrica | Valor |
 |---|---|
-| Cantidades negativas aceptadas (quantity = -2, 0) | Se pueden realizar pedidos con cantidades inválidas |
-| Campo `id` ausente en productsList devuelve 200 OK | Campo obligatorio no validado |
-| Cantidades decimales (2.3) generan error 500 | Crash del servidor en lugar de 400 |
-| Longitud del nombre del kit no validada | Reglas de nombre no implementadas |
-| PUT /kits devuelve 405 Method Not Allowed | Endpoint documentado no existe |
-| ID de producto inexistente devuelve 200 OK | Integridad del catálogo no validada |
+| Casos de prueba | 43 |
+| ✅ Aprobados | 18 |
+| ❌ Fallidos | 25 |
+| **Tasa de aprobación** | **42%** |
 
-### Archivos del Proyecto
+**Los 6 hallazgos más críticos:**
 
-| Archivo | Descripción |
+| Hallazgo | Qué salió mal |
 |---|---|
-| `test-cases/Luis_Manco_Sprint4_API_Testing_v3.xlsx` | Libro completo bilingüe: resumen teórico, 43 casos de prueba (EN/ES), resultados |
-| `evidence/bug-reports/Urban_Grocers_API_bugs_jira.doc` | Exportación de Jira — todos los informes de error con pasos de reproducción |
+| Cantidades negativas aceptadas (`-2`, `0`) | Pedidos con montos inválidos — impacto financiero |
+| Campo `id` ausente devuelve 200 OK | Campo obligatorio no validado — riesgo de integridad |
+| Cantidades decimales (`2.3`) generan **error 500** | El servidor se cae en lugar de devolver un 400 |
+| Longitud de nombre no validada | Reglas de nombre no implementadas — inconsistencia |
+| PUT /kits devuelve 405 Method Not Allowed | Endpoint documentado no existe — especificación vs. realidad |
+| ID de producto inexistente devuelve 200 OK | Productos fantasma aceptados — integridad del catálogo |
 
-### Habilidades Demostradas
-
-- ✅ Conceptos REST: métodos HTTP, códigos de estado, JSON
-- ✅ Clases de equivalencia aplicadas a campos de solicitudes API
-- ✅ Análisis de valores límite para campos numéricos
-- ✅ Ejecución de pruebas positivas y negativas con Postman
-- ✅ Identificación de errores 500 causados por falta de validación de entrada
-- ✅ Registro estructurado de bugs en Jira para defectos de API
-
----
-
-> 📚 Project developed as part of the **TripleTen QA Engineering Bootcamp**
+Los 25 bugs documentados en `evidence/bug-reports/Urban_Grocers_API_bugs_jira.doc` con detalles de request/response.
